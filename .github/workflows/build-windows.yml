@@ -1,0 +1,56 @@
+
+name: Build Planet Hunting for Windows
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Get project
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build Java application
+        run: mvn clean package
+
+      - name: Prepare application
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package-input
+          Copy-Item target/planet-hunting.jar package-input/
+
+      - name: Create Windows application
+        run: >
+          jpackage
+          --type app-image
+          --name PlanetHunting
+          --input package-input
+          --main-jar planet-hunting.jar
+          --main-class com.planethunting.planetHunting
+          --dest dist
+          --win-console
+
+      - name: Zip application
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/PlanetHunting -DestinationPath PlanetHunting-Windows.zip
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PlanetHunting-Windows.zip
+          generate_release_notes: true
